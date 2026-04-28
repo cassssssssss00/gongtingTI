@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GongTingTI - 宫廷人格维度深度检测</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root { --gold: #d4af37; --bg: #0a0a0a; --crimson: #3d0a0a; --text: #f0e6d2; }
+        body { background: var(--bg); color: var(--text); font-family: "PingFang SC", "STSong", serif; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        
+        .card { width: 90%; max-width: 400px; background: var(--crimson); border: 2px solid var(--gold); padding: 30px; box-shadow: 0 0 50px #000; position: relative; }
+        .card::before { content: "CLASSIFIED"; position: absolute; top: 10px; left: 10px; font-size: 8px; opacity: 0.4; letter-spacing: 1px; }
+        
+        .header { text-align: center; border-bottom: 1px solid var(--gold); margin-bottom: 20px; padding-bottom: 10px; }
+        .header h1 { font-size: 1.3rem; letter-spacing: 5px; color: var(--gold); margin: 0; }
+
+        .q-text { font-size: 1.1rem; line-height: 1.7; margin-bottom: 25px; min-height: 80px; text-align: justify; }
+        .opt { display: block; width: 100%; padding: 15px; margin: 12px 0; background: rgba(0,0,0,0.4); border: 1px solid #555; color: var(--text); cursor: pointer; text-align: left; transition: 0.3s; font-size: 0.9rem; border-radius: 4px; line-height: 1.4; }
+        .opt:hover { border-color: var(--gold); background: rgba(212,175,55,0.1); transform: translateX(5px); }
+        
+        #res-page { display: none; text-align: center; }
+        .code-box { font-size: 3.5rem; font-family: "Times New Roman", serif; color: var(--gold); letter-spacing: 12px; margin: 10px 0; font-weight: bold; }
+        .id-label { font-size: 1.8rem; color: #fff; margin-bottom: 10px; display: inline-block; border-bottom: 1px solid var(--gold); padding: 0 10px; }
+        
+        .rank-box { background: rgba(0,0,0,0.5); padding: 15px; margin: 20px 0; text-align: left; border: 1px dashed var(--gold); font-size: 0.85rem; }
+        .rank-item { display: flex; justify-content: space-between; margin: 6px 0; opacity: 0.8; }
+        .rank-item.user { color: #ff4d4d; font-weight: bold; opacity: 1; border-top: 1px solid #555; padding-top: 8px; margin-top: 8px; }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { flex: 1; background: var(--gold); color: #000; border: none; padding: 12px; font-weight: bold; cursor: pointer; border-radius: 2px; font-size: 0.9rem; }
+        .btn-secondary { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+    </style>
+</head>
+<body>
+
+<div class="card" id="main-card">
+    <div id="quiz-page">
+        <div class="header"><h1>GongTingTI</h1></div>
+        <div class="q-text" id="q-text">档案正在解密...</div>
+        <div id="opt-container"></div>
+    </div>
+
+    <div id="res-page">
+        <div class="header"><h1>测 评 报 告</h1></div>
+        <div class="code-box" id="res-code"></div>
+        <b class="id-label" id="res-id"></b>
+        
+        <div style="text-align:left; font-size:0.85rem; margin-top:15px; line-height:1.7; background: rgba(0,0,0,0.2); padding: 15px;">
+            <div id="res-desc"></div>
+            <div id="res-advice" style="color:var(--gold); margin-top:10px; border-top: 1px solid #444; padding-top:10px;"></div>
+        </div>
+
+        <div class="rank-box">
+            <div class="rank-item"><span>1. ISGL (操盘手)</span> <span>存活 · 99年</span></div>
+            <div class="rank-item"><span>2. IPGL (锦鲤位)</span> <span>存活 · 82年</span></div>
+            <div class="rank-item user" id="user-rank"></div>
+        </div>
+        
+        <div class="btn-group">
+            <button class="btn" onclick="saveImage()">生成海报</button>
+            <button class="btn btn-secondary" onclick="location.reload()">再入深宫</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        { q: "新晋宠妃处处排挤你，连你宫里的炭火都被克扣了，你？", opts: [
+            { t: "不动声色，私下向皇后的竞争对手示好并求援", s: 'G' },
+            { t: "直接去御前跪着，等皇上下班看你冻得苍白的脸", s: 'E' }
+        ]},
+        { q: "处理宫中错综复杂的人际时，你认为什么最重要？", opts: [
+            { t: "绝对的利益交换与理智判断", s: 'S' },
+            { t: "以诚待人，顾及往日情分", s: 'P' }
+        ]},
+        { q: "深夜你发现有人在井边秘密烧纸（宫中大忌），你会：", opts: [
+            { t: "记下特征作为日后筹码，以此要挟或施恩", s: 'I' },
+            { t: "当场喝止，利用规矩在宫人面前立威", s: 'E' }
+        ]},
+        { q: "如果你的母家失势，皇上对你态度冷落，你会？", opts: [
+            { t: "主动请缨去佛堂祈福，以退为进", s: 'I' },
+            { t: "穿着旧日的衣裳在花园跳舞，博取怜爱", s: 'L' }
+        ]},
+        { q: "你最喜欢的宫廷上位战术是？", opts: [
+            { t: "扮猪吃虎，在对手最松懈时反杀", s: 'G' },
+            { t: "实力碾压，正面直接刚到底", s: 'D' }
+        ]},
+        { q: "好姐妹成了你的竞争对手，你会？", opts: [
+            { t: "虽然难过，但会抢先布局保全自己", s: 'S' },
+            { t: "找她开诚布公，尝试寻找共存之道", s: 'P' }
+        ]},
+        { q: "被诬陷偷了太后的玉如意，你会？", opts: [
+            { t: "不卑不亢，条理清晰地陈述疑点", s: 'D' },
+            { t: "哭得梨花带雨，显得自己受了天大委屈", s: 'G' }
+        ]},
+        { q: "你希望这一生最终的结局是？", opts: [
+            { t: "受人敬畏、孤独一生的太后", s: 'I' },
+            { t: "权倾朝野、哪怕饱受争议的女皇", s: 'E' }
+        ]}
+    ];
+
+    let current = 0;
+    let scores = { E:0, I:0, S:0, P:0, D:0, G:0, L:0, U:0 };
+
+    function render() {
+        const qText = document.getElementById('q-text');
+        const box = document.getElementById('opt-container');
+        
+        if(current >= questions.length) {
+            showResult();
+            return;
+        }
+
+        const data = questions[current];
+        qText.innerText = (current + 1) + ". " + data.q;
+        box.innerHTML = '';
+        
+        data.opts.forEach(o => {
+            const btn = document.createElement('button');
+            btn.className = 'opt';
+            btn.innerText = o.t;
+            btn.onclick = () => { 
+                if(scores.hasOwnProperty(o.s)) scores[o.s]++; 
+                current++; 
+                render(); 
+            };
+            box.appendChild(btn);
+        });
+    }
+
+    function showResult() {
+        document.getElementById('quiz-page').style.display = 'none';
+        document.getElementById('res-page').style.display = 'block';
+
+        const code = [
+            scores.E >= scores.I ? 'E' : 'I',
+            scores.S >= scores.P ? 'S' : 'P',
+            scores.D >= scores.G ? 'D' : 'G',
+            scores.L >= scores.U ? 'L' : 'U'
+        ].join('');
+        
+        document.getElementById('res-code').innerText = code;
+
+        let years = 15;
+        if(code.includes('I')) years += 25;
+        if(code.includes('S')) years += 20;
+        if(code.includes('G')) years += 25;
+        if(code.includes('L')) years += 14;
+        if(code.includes('D')) years -= 10;
+        if(code.includes('E')) years -= 10;
+
+        const profiles = {
+            'ISGL': ["深宫操盘手", "你是规则的掌控者，极致冷静。所有人倒下后，你依然屹立不倒。"],
+            'EPDU': ["短命的贵族", "你太正直也太耀眼。在这深宫，明火往往是最先熄灭的。"],
+            'ISGU': ["孤独的棋手", "你有惊人的智谋，但总是命途多舛，一生都在计算，却难得圆满。"]
+        };
+
+        const resData = profiles[code] || ["后宫异数", "你的人格跨度极大，是宫廷博弈中最难预测的变数。"];
+        document.getElementById('res-id').innerText = resData[0];
+        document.getElementById('res-desc').innerText = resData[1];
+        document.getElementById('res-advice').innerText = "生存策略：" + (years > 70 ? "大智若愚，稳坐钓鱼台。" : "收敛锋芒，寻找更强的靠山。");
+        document.getElementById('user-rank').innerHTML = `<span>3. 您的 (${code})</span> <span>存活 · ${years}年</span>`;
+    }
+
+    function saveImage() {
+        const btnArea = document.querySelector('.btn-group');
+        btnArea.style.display = 'none';
+        
+        html2canvas(document.getElementById('main-card'), {
+            backgroundColor: '#3d0a0a',
+            scale: 2 // 提高画质
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `GongTingTI_${new Date().getTime()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+            btnArea.style.display = 'flex';
+        });
+    }
+
+    // 确保 DOM 加载后立刻启动
+    document.addEventListener('DOMContentLoaded', render);
+</script>
+</body>
+</html>
